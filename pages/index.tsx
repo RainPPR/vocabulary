@@ -441,7 +441,8 @@ const Page: React.FC = () => {
   const [quizIndex, setQuizIndex] = useState(0);
   const [quizAnswered, setQuizAnswered] = useState<number | null>(null);
   const [quizOptions, setQuizOptions] = useState<WordWithProgress[]>([]);
-
+  const [lastAnswerWasCorrect, setLastAnswerWasCorrect] = useState<boolean | null>(null);
+  
   const generateQuiz = useCallback(() => {
     const base = filteredWords.length ? filteredWords : words;
     if (base.length === 0) return;
@@ -453,6 +454,7 @@ const Page: React.FC = () => {
     setQuizIndex(correctIdx);
     setQuizOptions(opts);
     setQuizAnswered(null);
+    setLastAnswerWasCorrect(null);
   }, [filteredWords, words]);
 
   useEffect(() => {
@@ -483,18 +485,24 @@ const Page: React.FC = () => {
     const chosen = quizOptions[idx];
     if (correct && chosen) {
       const isCorrect = chosen.value === correct.value;
-      updateProgress(correct.value, (p) => ({
-        ...p,
-        seenCount: p.seenCount + 1,
-        correctCount: p.correctCount + (isCorrect ? 1 : 0),
-        streak: isCorrect ? p.streak + 1 : 0,
-        lastReviewed: now(),
-        nextDue: now() + (isCorrect ? INTERVALS.good : INTERVALS.again),
-      }));
+      setLastAnswerWasCorrect(isCorrect);
     }
   };
-
+  
   const nextQuiz = () => {
+    const correctWord = filteredWords[quizIndex];
+  
+    if (correctWord && lastAnswerWasCorrect !== null) {
+      updateProgress(correctWord.value, (p) => ({
+        ...p,
+        seenCount: p.seenCount + 1,
+        correctCount: p.correctCount + (lastAnswerWasCorrect ? 1 : 0),
+        streak: lastAnswerWasCorrect ? p.streak + 1 : 0,
+        lastReviewed: now(),
+        nextDue: now() + (lastAnswerWasCorrect ? INTERVALS.good : INTERVALS.again),
+      }));
+    }
+
     generateQuiz();
   };
 
@@ -925,10 +933,7 @@ const Page: React.FC = () => {
                           : "border-slate-200 bg-white hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700";
                       return (
                         <button key={opt.id} className={`${base} ${cls}`} onClick={() => onChoose(idx)}>
-                          <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full border border-slate-300 text-xs dark:border-slate-600">
-                            {idx + 1}
-                          </span>
-                          {quizMode === "w2t" ? opt.translation || opt.definition || "-" : opt.value}
+                          <p>{quizMode === "w2t" ? opt.translation || opt.definition || "-" : opt.value}</p>
                         </button>
                       );
                     })}
